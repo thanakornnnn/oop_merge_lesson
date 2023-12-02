@@ -69,13 +69,25 @@ class Table:
             if condition(item1):
                 filtered_table.table.append(item1)
         return filtered_table
+
+    def __is_float(self, element):
+        if element is None:
+            return False
+        try:
+            float(element)
+            return True
+        except ValueError:
+            return False
     
     def aggregate(self, function, aggregation_key):
         temps = []
         for item1 in self.table:
-            temps.append(float(item1[aggregation_key]))
+            if self.__is_float(item1[aggregation_key]):
+                temps.append(float(item1[aggregation_key]))
+            else:
+                temps.append(item1[aggregation_key])
         return function(temps)
-    
+
     def select(self, attributes_list):
         temps = []
         for item1 in self.table:
@@ -85,6 +97,35 @@ class Table:
                     dict_temp[key] = item1[key]
             temps.append(dict_temp)
         return temps
+
+    def pivot_table(self, keys_to_pivot_list, keys_to_aggreagte_list, aggregate_func_list):
+
+        unique_values_list = []
+        for key_item in keys_to_pivot_list:
+            temp = []
+            for dict in self.table:
+                if dict[key_item] not in temp:
+                    temp.append(dict[key_item])
+            unique_values_list.append(temp)
+
+        # combination of unique value lists
+        import combination
+        comb_list = combination.gen_comb_list(unique_values_list)
+
+        pivot_table = []
+        # filter each combination
+        for item in comb_list:
+            temp_filter_table = self
+            for i in range(len(item)):
+                temp_filter_table = temp_filter_table.filter(lambda x: x[keys_to_pivot_list[i]] == item[i])
+
+            # aggregate over the filtered table
+            aggregate_val_list = []
+            for i in range(len(keys_to_aggreagte_list)):
+                aggregate_val = temp_filter_table.aggregate(aggregate_func_list[i], keys_to_aggreagte_list[i])
+                aggregate_val_list.append(aggregate_val)
+            pivot_table.append([item, aggregate_val_list])
+        return pivot_table
 
     def __str__(self):
         return self.table_name + ':' + str(self.table)
